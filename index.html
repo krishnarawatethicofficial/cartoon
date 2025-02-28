@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced Cartoonify Image</title>
+  <!-- Include TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    input, canvas {
+      margin: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Advanced Cartoonify Your Image</h1>
+  <p>Select an image to transform it into a cartoon or anime style using AI:</p>
+  <!-- Input for image upload -->
+  <input type="file" id="imageInput" accept="image/*">
+  <!-- Canvas to display the processed image -->
+  <canvas id="output" style="display: none; max-width: 100%;"></canvas>
+
+  <script>
+    // Function to load the pre-trained model from GitHub Pages
+    async function loadModel() {
+      // Replace the URL below with your actual GitHub Pages URL for the model file
+      const modelUrl = 'https://krishnarawatethicofficial.github.io/your-repo/models/animegan_model.json';
+      const model = await tf.loadGraphModel(modelUrl);
+      return model;
+    }
+
+    // Event listener for image upload
+    document.getElementById('imageInput').addEventListener('change', async function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = async function(e) {
+          const img = new Image();
+          img.onload = async function() {
+            // Set up the canvas dimensions based on the image size
+            const canvas = document.getElementById('output');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+
+            // Load the pre-trained model
+            const model = await loadModel();
+
+            // Convert the canvas image to a tensor
+            const tensor = tf.browser.fromPixels(canvas);
+
+            // Preprocess: resize to 256x256 and normalize pixel values
+            const preprocessed = tensor.resizeBilinear([256, 256])
+                                       .div(255.0)
+                                       .expandDims();
+
+            // Run the model inference
+            const output = model.predict(preprocessed);
+
+            // Postprocess: denormalize, clip pixel values, and resize to original dimensions
+            const postprocessed = output.squeeze()
+                                        .mul(255)
+                                        .clipByValue(0, 255)
+                                        .resizeBilinear([img.height, img.width]);
+
+            // Display the stylized image on the canvas
+            await tf.browser.toPixels(postprocessed, canvas);
+            canvas.style.display = 'block';
+          };
+          img.src = e.target.result;  // Load the image from file data
+        };
+        reader.readAsDataURL(file);  // Read the file as a data URL
+      }
+    });
+  </script>
+</body>
+</html>
